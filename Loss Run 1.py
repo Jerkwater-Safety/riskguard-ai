@@ -1,11 +1,8 @@
-
-Enter "help" below or click "Help" above for more information.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
-import pdfplumber
 from datetime import datetime, timedelta
 
 # --- SET PAGE CONFIG ---
@@ -19,7 +16,7 @@ INDUSTRY_DEFAULTS = {
     "Logistics": {"TRIR": 4.2, "Avg_Claim": 35000}
 }
 
-# --- DATA GENERATOR (UPDATED FOR RESERVES) ---
+# --- DATA GENERATOR ---
 def generate_sample_data():
     causes = ['Overexertion', 'Slips/Falls', 'Struck-By', 'Repetitive Motion', 'Motor Vehicle']
     depts = ['Warehouse', 'Assembly', 'Logistics', 'Administration', 'Maintenance']
@@ -55,7 +52,7 @@ def generate_sample_data():
     ])
 
 # --- APP START ---
-df = generate_sample_data() # Default for demo
+df = generate_sample_data() 
 
 st.title("🛡️ RiskGuard AI Pro")
 st.markdown("### *Enterprise Workers' Compensation Intelligence & Financial Recovery*")
@@ -71,6 +68,10 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📊 Analytics", "💸 Leakage", "📉 Benchmarking", "🔍 Safety Audit", "💼 Reserve Tracker"
 ])
 
+# (Tabs 1-4 placeholder logic)
+for t in [tab1, tab2, tab3, tab4]:
+    t.write("Dashboard component loading...")
+
 # --- TAB 5: OPEN CLAIM RESERVE TRACKER ---
 with tab5:
     st.header("💼 Open Claim Reserve & Tail Risk Tracker")
@@ -80,7 +81,9 @@ with tab5:
     r1, r2, r3, r4 = st.columns(4)
     r1.metric("Total Outstanding (Reserves)", f"${total_outstanding:,.0f}", help="Future money set aside")
     r2.metric("Open Claims", open_claims_count)
-    r3.metric("Paid-to-Incurred Ratio", f"{(total_paid/total_incurred)*100:.1f}%")
+    
+    paid_ratio = (total_paid/total_incurred)*100 if total_incurred > 0 else 0
+    r3.metric("Paid-to-Incurred Ratio", f"{paid_ratio:.1f}%")
     r4.metric("Potential Blow-up Risk", "High", delta="3 claims")
 
     st.divider()
@@ -89,38 +92,34 @@ with tab5:
 
     with c1:
         st.subheader("Reserve Composition: Medical vs. Indemnity")
-        # Stacked bar for reserves by Cause
-        res_by_cause = df[df['Status'] == 'Open'].groupby('Cause')[['Reserve_Medical', 'Reserve_Indemnity']].sum().reset_index()
-        fig_res = px.bar(res_by_cause, x='Cause', y=['Reserve_Medical', 'Reserve_Indemnity'], 
-                         title="Open Reserves by Incident Type", barmode='stack',
-...                          color_discrete_sequence=['#1f77b4', '#ff7f0e'])
-...         st.plotly_chart(fig_res, use_container_width=True)
-... 
-...     with c2:
-...         st.subheader("Reserve Distribution")
-...         res_pie = pd.DataFrame({
-...             "Type": ["Medical Reserve", "Indemnity Reserve"],
-...             "Amount": [df['Reserve_Medical'].sum(), df['Reserve_Indemnity'].sum()]
-...         })
-...         st.plotly_chart(px.pie(res_pie, values='Amount', names='Type', hole=0.4), use_container_width=True)
-... 
-...     st.divider()
-...     
-...     # Audit Checklist / High-Risk Claims
-...     st.subheader("🚩 High-Risk 'Audit Needed' Claims")
-...     st.write("The following open claims have reserves exceeding $50,000 and should be audited for closure potential.")
-...     
-...     high_risk_claims = df[(df['Status'] == 'Open') & (df['Total_Incurred'] > 50000)].sort_values(by='Total_Incurred', ascending=False)
-...     
-...     # Styling the dataframe for the dashboard
-...     st.dataframe(high_risk_claims[['Claim_ID', 'Date', 'Cause', 'Department', 'Total_Incurred']], 
-...                  use_container_width=True, hide_index=True)
-... 
-...     # Strategic Recommendation
-...     st.info("""
-...     **Pro-Tip for Claims Management:** 
-...     Any claim open longer than 18 months with no medical activity in the last 60 days should be targeted for **Settlement / C&R (Compromise and Release)** to remove the liability from your books before the next E-Mod calculation.
-...     """)
-... 
-... # --- [Rest of the tabs contain the previous logic for brevity] ---
-... # Tab 1: Analytics, Tab 2: Leakage, Tab 3: Benchmarking, Tab 4: Safety Audit 
+        open_df = df[df['Status'] == 'Open']
+        if not open_df.empty:
+            res_by_cause = open_df.groupby('Cause')[['Reserve_Medical', 'Reserve_Indemnity']].sum().reset_index()
+            fig_res = px.bar(res_by_cause, x='Cause', y=['Reserve_Medical', 'Reserve_Indemnity'], 
+                            title="Open Reserves by Incident Type", barmode='stack',
+                            color_discrete_sequence=['#1f77b4', '#ff7f0e'])
+            st.plotly_chart(fig_res, use_container_width=True)
+        else:
+            st.write("No open claims found.")
+
+    with c2:
+        st.subheader("Reserve Distribution")
+        res_pie = pd.DataFrame({
+            "Type": ["Medical Reserve", "Indemnity Reserve"],
+            "Amount": [df['Reserve_Medical'].sum(), df['Reserve_Indemnity'].sum()]
+        })
+        st.plotly_chart(px.pie(res_pie, values='Amount', names='Type', hole=0.4), use_container_width=True)
+
+    st.divider()
+    
+    st.subheader("🚩 High-Risk 'Audit Needed' Claims")
+    st.write("The following open claims have reserves exceeding $50,000.")
+    
+    high_risk_claims = df[(df['Status'] == 'Open') & (df['Total_Incurred'] > 50000)].sort_values(by='Total_Incurred', ascending=False)
+    
+    st.dataframe(high_risk_claims[['Claim_ID', 'Date', 'Cause', 'Department', 'Total_Incurred']], 
+                 use_container_width=True, hide_index=True)
+
+    st.info("""
+    **Pro-Tip for Claims Management:** Any claim open longer than 18 months with no medical activity in the last 60 days should be targeted for **Settlement / C&R (Compromise and Release)**.
+    """)
