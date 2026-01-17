@@ -1,4 +1,4 @@
-Python 3.15.0a3 (v3.15.0a3:f1eb0c0b0cd, Dec 16 2025, 08:05:19) [Clang 17.0.0 (clang-1700.6.3.2)] on darwin
+
 Enter "help" below or click "Help" above for more information.
 import streamlit as st
 import pandas as pd
